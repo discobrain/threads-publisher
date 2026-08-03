@@ -125,23 +125,44 @@ API = f"{GRAPH_HOST}/v1.0"
 def create_container(
     user_id: str,
     access_token: str,
-    text: str,
     *,
+    media_type: str,
+    text: str | None = None,
+    image_url: str | None = None,
+    children: list[str] | None = None,
+    is_carousel_item: bool = False,
     reply_to_id: str | None = None,
     crossreshare_to_ig: bool = False,
     dark_mode: bool = False,
 ) -> dict:
-    """Create a TEXT media container. Set reply_to_id to chain it under another
-    post (thread). crossreshare_to_ig=True also reshares this post to the linked
-    Instagram account as a Story; the response then carries
-    crossreshare_to_ig_status (SUCCESS/FAILED). Returns {id, ...}."""
-    data = {"media_type": "TEXT", "text": text, "access_token": access_token}
+    """Create a media container. media_type is TEXT, IMAGE or CAROUSEL:
+      - TEXT: text
+      - IMAGE: image_url (+ optional text; is_carousel_item for a carousel child)
+      - CAROUSEL: children (ids of IMAGE items) + optional text
+    reply_to_id chains it under another post (thread). crossreshare_to_ig=True
+    also reshares to Instagram Stories (response carries crossreshare_to_ig_status).
+    Returns {id, ...}."""
+    data = {"media_type": media_type, "access_token": access_token}
+    if text is not None:
+        data["text"] = text
+    if image_url is not None:
+        data["image_url"] = image_url
+    if children:
+        data["children"] = ",".join(children)
+    if is_carousel_item:
+        data["is_carousel_item"] = "true"
     if reply_to_id:
         data["reply_to_id"] = reply_to_id
     if crossreshare_to_ig:
-        key = "crossreshare_to_ig_dark_mode" if dark_mode else "crossreshare_to_ig"
-        data[key] = "true"
+        data["crossreshare_to_ig_dark_mode" if dark_mode else "crossreshare_to_ig"] = "true"
     return _post(f"{API}/{user_id}/threads", data)
+
+
+def get_status(container_id: str, access_token: str) -> str:
+    """Container processing status: FINISHED / IN_PROGRESS / ERROR / EXPIRED."""
+    r = _get(f"{API}/{container_id}?"
+             + urllib.parse.urlencode({"fields": "status", "access_token": access_token}))
+    return r.get("status", "")
 
 
 def publish_container(user_id: str, access_token: str, creation_id: str) -> dict:

@@ -75,3 +75,16 @@ class Discourse:
 
     def delete_post(self, post_id: int) -> dict:
         return self._request("DELETE", f"/posts/{post_id}.json")
+
+    def lookup_upload_urls(self, short_urls: list[str]) -> dict[str, str]:
+        """Resolve `upload://...` short-urls to their real URLs. Returns a
+        {short_url: url} map (missing ones are simply absent)."""
+        if not short_urls:
+            return {}
+        res = self._request("POST", "/uploads/lookup-urls", {"short_urls[]": short_urls})
+        out = {}
+        for item in res or []:
+            su, url = item.get("short_url"), item.get("url")
+            if su and url:
+                out[su] = url
+        return out

@@ -55,6 +55,27 @@ def _in_scope(cfg, topic: dict) -> bool:
     return cfg.category_id is None or topic.get("category_id") == cfg.category_id
 
 
+def _resolve_images(cfg, dc: Discourse, posts) -> None:
+    """Turn each post's raw refs into public URLs Threads can fetch: resolve
+    `upload://` short-urls via Discourse, keep full URLs, make relative absolute.
+    Unresolvable refs are dropped with a warning."""
+    refs = {r for p in posts for r in p.images if r.startswith("upload://")}
+    mapping = dc.lookup_upload_urls(sorted(refs)) if refs else {}
+    for p in posts:
+        urls = []
+        for r in p.images:
+            u = r if r.startswith("http") else mapping.get(r)
+            if not u:
+                log(f"image ref unresolved, dropping: {r}")
+                continue
+            if u.startswith("//"):
+                u = "https:" + u
+            elif u.startswith("/"):
+                u = cfg.discourse_url.rstrip("/") + u
+            urls.append(u)
+        p.images = urls
+
+
 def _published_line(cfg, permalink: str) -> str:
     """The 'Threads Published' line inserted inside the draft's details block: an
     internal link to the index page (creates a backlink there) + the post URL."""
@@ -110,13 +131,14 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
     if not posts:
         log(f"topic {tid}: draft comment has no fenced posts, skipping")
         return
-    if draft.has_images(raw):
-        log(f"topic {tid}: draft has image markup; posting text only (images unsupported)")
+    _resolve_images(cfg, dc, posts)
 
-    log(f"topic {tid}: approved, publishing {len(posts)} post(s)")
+    total_imgs = sum(len(p.images) for p in posts)
+    log(f"topic {tid}: approved, publishing {len(posts)} post(s), {total_imgs} image(s)")
     if cfg.dry_run:
         for i, p in enumerate(posts, 1):
-            log(f"[dry-run] topic {tid} post {i}/{len(posts)} ({len(p)} chars):\n{p}")
+            extra = ("\n  images: " + ", ".join(p.images)) if p.images else ""
+            log(f"[dry-run] topic {tid} post {i}/{len(posts)} ({len(p.text)} chars):\n{p.text}{extra}")
         return
 
     # Throttle: at most one publish per min_publish_interval, so a burst of likes

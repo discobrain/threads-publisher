@@ -1,26 +1,28 @@
-"""Publish a list of post bodies to Threads as a single thread.
+"""Publish a list of posts to Threads as a single thread.
 
-Each post is a two-step Graph call: create a container, then publish it. Posts
-after the first are chained under the previous published post via reply_to_id.
-The root post also cross-reshares to Instagram Stories when enabled.
+Each post is created as a container then published; posts after the first chain
+under the previous published post via reply_to_id. A post with no images is a
+TEXT container, with one image an IMAGE container, with several a CAROUSEL of
+IMAGE items. The root post also cross-reshares to Instagram Stories when enabled.
 
-A freshly created container may need a moment before it can be published, so
-publish is retried a few times.
+Containers (especially image ones) need a moment to process, so we wait for
+FINISHED before publishing.
 """
 
 import time
 
 from . import threads
+from .draft import Post
 
-_PUBLISH_RETRIES = 5
-_PUBLISH_BACKOFF = 3  # seconds between publish attempts
+_STATUS_TRIES = 20
+_STATUS_DELAY = 3  # seconds between status checks
 
 
 class PublishError(RuntimeError):
     """Raised when a thread doesn't fully publish. `published` holds the media
     ids that DID go live before the failure, so the caller can decide whether to
-    mark the topic done (something is live -> don't risk re-posting it) or retry
-    (nothing went live)."""
+    mark the topic done (something is live -> don't re-post) or retry (nothing
+    went live)."""
 
     def __init__(self, message: str, published: list[str]):
         super().__init__(message)
@@ -31,22 +33,40 @@ def log(msg: str) -> None:
     print(f"[threads-poster] {msg}", flush=True)
 
 
-def _publish_with_retry(user_id: str, token: str, creation_id: str) -> dict:
-    last = None
-    for attempt in range(1, _PUBLISH_RETRIES + 1):
-        try:
-            return threads.publish_container(user_id, token, creation_id)
-        except RuntimeError as e:  # container not processed yet -> wait and retry
-            last = e
-            if attempt < _PUBLISH_RETRIES:
-                time.sleep(_PUBLISH_BACKOFF)
-    raise RuntimeError(f"publish failed after {_PUBLISH_RETRIES} attempts: {last}")
+def _await_ready(container_id: str, token: str) -> None:
+    for _ in range(_STATUS_TRIES):
+        status = threads.get_status(container_id, token)
+        if status == "FINISHED":
+            return
+        if status in ("ERROR", "EXPIRED"):
+            raise RuntimeError(f"container {container_id} status {status}")
+        time.sleep(_STATUS_DELAY)
+    # Timed out still IN_PROGRESS -> let publish try anyway.
+
+
+def _build_container(user_id, token, post: Post, reply_to, crossreshare, dark) -> dict:
+    common = dict(reply_to_id=reply_to, crossreshare_to_ig=crossreshare, dark_mode=dark)
+    if not post.images:
+        return threads.create_container(user_id, token, media_type="TEXT", text=post.text, **common)
+    if len(post.images) == 1:
+        return threads.create_container(
+            user_id, token, media_type="IMAGE", image_url=post.images[0],
+            text=post.text or None, **common,
+        )
+    children = [
+        threads.create_container(user_id, token, media_type="IMAGE", image_url=u,
+                                 is_carousel_item=True)["id"]
+        for u in post.images
+    ]
+    return threads.create_container(
+        user_id, token, media_type="CAROUSEL", children=children, text=post.text or None, **common,
+    )
 
 
 def publish_thread(
     user_id: str,
     token: str,
-    posts: list[str],
+    posts: list[Post],
     *,
     crossreshare_to_ig: bool = True,
     dark_mode: bool = False,
@@ -55,27 +75,21 @@ def publish_thread(
     crossreshare_to_ig applies to the ROOT post only (one Story per thread)."""
     media_ids: list[str] = []
     reply_to: str | None = None
-    for i, text in enumerate(posts):
+    for i, post in enumerate(posts):
         root = i == 0
         try:
-            container = threads.create_container(
-                user_id,
-                token,
-                text,
-                reply_to_id=reply_to,
-                crossreshare_to_ig=(root and crossreshare_to_ig),
-                dark_mode=dark_mode,
+            container = _build_container(
+                user_id, token, post, reply_to, root and crossreshare_to_ig, dark_mode
             )
             if root and crossreshare_to_ig:
                 status = container.get("crossreshare_to_ig_status", "unknown")
                 log(f"crossreshare_to_ig_status={status}")
-                if status == "FAILED":
-                    log("IG Story cross-reshare FAILED (thread still publishes); "
-                        "check the Threads account has a linked Instagram account")
-            media = _publish_with_retry(user_id, token, container["id"])
+            _await_ready(container["id"], token)
+            media = threads.publish_container(user_id, token, container["id"])
         except RuntimeError as e:
             raise PublishError(f"post {i + 1}/{len(posts)}: {e}", media_ids) from e
         media_ids.append(media["id"])
         reply_to = media["id"]
-        log(f"published post {i + 1}/{len(posts)} -> {media['id']}")
+        imgs = f", {len(post.images)} img" if post.images else ""
+        log(f"published post {i + 1}/{len(posts)}{imgs} -> {media['id']}")
     return media_ids
