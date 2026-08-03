@@ -11,4 +11,6 @@ draft_label = "Threads"              # [details="<label>"] the drafter wraps pos
 # category = 5                       # only publish drafts in this Discourse category
 
 crossreshare_to_ig = true            # also reshare the root post to Instagram Stories
-crossreshare_dark_mode = false       # use the dark-mode IG Story variant
+# This account's light-mode crossreshare_to_ig returns "feature not available"
+# (4279044) while the dark-mode variant works, so use dark mode.
+crossreshare_dark_mode = true        # use the dark-mode IG Story variant
