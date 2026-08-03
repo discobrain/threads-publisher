@@ -23,16 +23,18 @@ the surrounding prose -- only the fenced post bodies, in order.
 import re
 
 _FENCE = re.compile(r"```md\n(.*?)\n```", re.DOTALL)
+_SUMMARY = re.compile(r"<summary>(.*?)</summary>", re.DOTALL)
 _LIKE_ACTION_ID = 2
 
 
 def find_draft_post(topic: dict, label: str) -> dict | None:
     """The network's draft comment, matched via its already-rendered details
     summary in the topic JSON -- no extra API call per comment (the raw is only
-    fetched later, once the draft is approved). Returns the post dict or None."""
-    marker = f">{label}</summary>"
+    fetched later, once the draft is approved). Discourse renders the summary
+    with surrounding whitespace (e.g. `<summary>\\nThreads</summary>`), so match
+    on the stripped text. Returns the post dict or None."""
     for p in (topic.get("post_stream") or {}).get("posts") or []:
-        if marker in (p.get("cooked") or ""):
+        if any(s.strip() == label for s in _SUMMARY.findall(p.get("cooked") or "")):
             return p
     return None
 
