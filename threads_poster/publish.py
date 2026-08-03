@@ -16,6 +16,17 @@ _PUBLISH_RETRIES = 5
 _PUBLISH_BACKOFF = 3  # seconds between publish attempts
 
 
+class PublishError(RuntimeError):
+    """Raised when a thread doesn't fully publish. `published` holds the media
+    ids that DID go live before the failure, so the caller can decide whether to
+    mark the topic done (something is live -> don't risk re-posting it) or retry
+    (nothing went live)."""
+
+    def __init__(self, message: str, published: list[str]):
+        super().__init__(message)
+        self.published = published
+
+
 def log(msg: str) -> None:
     print(f"[threads-poster] {msg}", flush=True)
 
@@ -46,21 +57,24 @@ def publish_thread(
     reply_to: str | None = None
     for i, text in enumerate(posts):
         root = i == 0
-        container = threads.create_container(
-            user_id,
-            token,
-            text,
-            reply_to_id=reply_to,
-            crossreshare_to_ig=(root and crossreshare_to_ig),
-            dark_mode=dark_mode,
-        )
-        if root and crossreshare_to_ig:
-            status = container.get("crossreshare_to_ig_status", "unknown")
-            log(f"crossreshare_to_ig_status={status}")
-            if status == "FAILED":
-                log("IG Story cross-reshare FAILED (thread still publishes); "
-                    "check the Threads account has a linked Instagram account")
-        media = _publish_with_retry(user_id, token, container["id"])
+        try:
+            container = threads.create_container(
+                user_id,
+                token,
+                text,
+                reply_to_id=reply_to,
+                crossreshare_to_ig=(root and crossreshare_to_ig),
+                dark_mode=dark_mode,
+            )
+            if root and crossreshare_to_ig:
+                status = container.get("crossreshare_to_ig_status", "unknown")
+                log(f"crossreshare_to_ig_status={status}")
+                if status == "FAILED":
+                    log("IG Story cross-reshare FAILED (thread still publishes); "
+                        "check the Threads account has a linked Instagram account")
+            media = _publish_with_retry(user_id, token, container["id"])
+        except RuntimeError as e:
+            raise PublishError(f"post {i + 1}/{len(posts)}: {e}", media_ids) from e
         media_ids.append(media["id"])
         reply_to = media["id"]
         log(f"published post {i + 1}/{len(posts)} -> {media['id']}")

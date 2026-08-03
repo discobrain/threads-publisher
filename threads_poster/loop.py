@@ -6,9 +6,11 @@ Per pass, for every topic tagged `<key>-draft` and not yet `<key>-published`:
     Instagram Stories)
   - tag the topic `<key>-published`
 
-The published tag is set BEFORE posting (tag-first), matching postmaker: for an
-irreversible public post, never risk a duplicate on the next pass. A publish
-error after tagging is logged loudly -- remove the tag to retry that topic.
+The published tag is set AFTER a successful publish, so a rejected post (bad
+text, a gated feature, rate limit) never marks a topic published -- it just
+retries next pass. If a multi-post thread fails partway, whatever already went
+live is enough to tag the topic (so those posts are never duplicated) and the
+remainder is left for manual finishing.
 
 State lives in Discourse tags + the like; nothing is stored locally beyond the
 access token.
@@ -80,8 +82,6 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
             log(f"[dry-run] topic {tid} post {i}/{len(posts)} ({len(p)} chars):\n{p}")
         return
 
-    # Tag-first: mark published before posting so a crash can't double-post.
-    dc.set_tags(tid, sorted(tags | {cfg.published_tag}))
     user_id = tok.user_id or "me"
     try:
         publish.publish_thread(
@@ -91,10 +91,22 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
             crossreshare_to_ig=cfg.crossreshare_to_ig,
             dark_mode=cfg.crossreshare_dark_mode,
         )
-        log(f"topic {tid}: published")
-    except Exception as e:
-        log(f"topic {tid}: PUBLISH FAILED after tagging {cfg.published_tag} -- "
-            f"remove that tag to retry. Error: {e}")
+    except publish.PublishError as e:
+        if e.published:
+            # Some posts are already live -> mark done so we never re-post them;
+            # the rest need finishing by hand.
+            dc.set_tags(tid, sorted(tags | {cfg.published_tag}))
+            log(f"topic {tid}: PARTIAL publish ({len(e.published)} live) then failed: {e}. "
+                f"Tagged {cfg.published_tag} to avoid re-posting; finish the remainder manually.")
+        else:
+            log(f"topic {tid}: publish failed, nothing posted -- will retry next pass: {e}")
+        return
+
+    # Full success -> tag AFTER posting so a failed publish never marks a topic
+    # published (the tiny crash window between last post and tagging is the only
+    # residual duplicate risk).
+    dc.set_tags(tid, sorted(tags | {cfg.published_tag}))
+    log(f"topic {tid}: published")
 
 
 def run_once(cfg, dc: Discourse, tok: token_store.Token) -> None:
