@@ -132,9 +132,11 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
         log(f"topic {tid}: draft comment has no fenced posts, skipping")
         return
     _resolve_images(cfg, dc, posts)
+    topic_tag = draft.parse_topic(raw) or cfg.topic_tag or None
 
     total_imgs = sum(len(p.images) for p in posts)
-    log(f"topic {tid}: approved, publishing {len(posts)} post(s), {total_imgs} image(s)")
+    tt = f", topic_tag={topic_tag}" if topic_tag else ""
+    log(f"topic {tid}: approved, publishing {len(posts)} post(s), {total_imgs} image(s){tt}")
     if cfg.dry_run:
         for i, p in enumerate(posts, 1):
             extra = ("\n  images: " + ", ".join(p.images)) if p.images else ""
@@ -156,6 +158,7 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
             user_id,
             tok.access_token,
             posts,
+            topic_tag=topic_tag,
             crossreshare_to_ig=cfg.crossreshare_to_ig,
             dark_mode=cfg.crossreshare_dark_mode,
         )

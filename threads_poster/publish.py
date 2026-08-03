@@ -44,8 +44,9 @@ def _await_ready(container_id: str, token: str) -> None:
     # Timed out still IN_PROGRESS -> let publish try anyway.
 
 
-def _build_container(user_id, token, post: Post, reply_to, crossreshare, dark) -> dict:
-    common = dict(reply_to_id=reply_to, crossreshare_to_ig=crossreshare, dark_mode=dark)
+def _build_container(user_id, token, post: Post, reply_to, topic_tag, crossreshare, dark) -> dict:
+    common = dict(reply_to_id=reply_to, topic_tag=topic_tag,
+                  crossreshare_to_ig=crossreshare, dark_mode=dark)
     if not post.images:
         return threads.create_container(user_id, token, media_type="TEXT", text=post.text, **common)
     if len(post.images) == 1:
@@ -68,18 +69,20 @@ def publish_thread(
     token: str,
     posts: list[Post],
     *,
+    topic_tag: str | None = None,
     crossreshare_to_ig: bool = True,
     dark_mode: bool = False,
 ) -> list[str]:
     """Publish posts in order, chaining replies. Returns the published media ids.
-    crossreshare_to_ig applies to the ROOT post only (one Story per thread)."""
+    topic_tag and crossreshare_to_ig apply to the ROOT post only."""
     media_ids: list[str] = []
     reply_to: str | None = None
     for i, post in enumerate(posts):
         root = i == 0
         try:
             container = _build_container(
-                user_id, token, post, reply_to, root and crossreshare_to_ig, dark_mode
+                user_id, token, post, reply_to,
+                topic_tag if root else None, root and crossreshare_to_ig, dark_mode,
             )
             if root and crossreshare_to_ig:
                 status = container.get("crossreshare_to_ig_status", "unknown")

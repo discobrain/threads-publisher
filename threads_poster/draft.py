@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 _FENCE = re.compile(r"```md\n(.*?)\n```", re.DOTALL)
 _IMG_MD = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 _SUMMARY = re.compile(r"<summary>(.*?)</summary>", re.DOTALL)
+_TOPIC = re.compile(r"^[ \t>]*Topic:[ \t]*#?(.+?)[ \t]*$", re.MULTILINE | re.IGNORECASE)
 _LIKE_ACTION_ID = 2
 
 
@@ -57,6 +58,13 @@ def is_liked(post: dict) -> bool:
         if action.get("id") == _LIKE_ACTION_ID and (action.get("count") or 0) > 0:
             return True
     return bool(post.get("like_count"))
+
+
+def parse_topic(raw: str) -> str | None:
+    """A `Topic: <tag>` line outside the fenced post text -> its topic_tag, or
+    None. Optional -- absent means no topic tag (existing behaviour unchanged)."""
+    m = _TOPIC.search(_FENCE.sub("", raw))
+    return m.group(1).strip() if m else None
 
 
 def parse_posts(raw: str) -> list[Post]:

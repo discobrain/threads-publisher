@@ -19,6 +19,10 @@ draft_label = "Threads"              # [details="<label>"] the drafter wraps pos
 crossreshare_to_ig = false           # also reshare the root post to Instagram Stories
 crossreshare_dark_mode = false       # dark-mode IG Story variant (only if enabled)
 
+# Default Threads topic tag (community). A `Topic: <tag>` line in a draft (outside
+# the ```md post text) overrides this per note; empty = no topic tag.
+topic_tag = ""
+
 link_back = true                     # comment the published Threads post URL back in Discourse
 # Link each published note to this Discourse page so its backlinks list everything
 # published (leave empty to just drop the Threads URL). Path or full URL.

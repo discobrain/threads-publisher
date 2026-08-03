@@ -88,7 +88,7 @@ def _cmd_show(cfg: config.Config, topic_id: int) -> int:
     posts = draft.parse_posts(raw)
     total_imgs = sum(len(p.images) for p in posts)
     print(f"draft comment: post_id={post['id']} liked={draft.is_liked(post)} "
-          f"parts={len(posts)} image_refs={total_imgs}")
+          f"parts={len(posts)} image_refs={total_imgs} topic_tag={draft.parse_topic(raw)!r}")
     for i, p in enumerate(posts, 1):
         extra = ("\n  image refs: " + ", ".join(p.images)) if p.images else ""
         print(f"\n--- part {i}/{len(posts)} ({len(p.text)} chars) ---\n{p.text}{extra}")

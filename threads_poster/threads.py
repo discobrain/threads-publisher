@@ -132,6 +132,7 @@ def create_container(
     children: list[str] | None = None,
     is_carousel_item: bool = False,
     reply_to_id: str | None = None,
+    topic_tag: str | None = None,
     crossreshare_to_ig: bool = False,
     dark_mode: bool = False,
 ) -> dict:
@@ -153,6 +154,8 @@ def create_container(
         data["is_carousel_item"] = "true"
     if reply_to_id:
         data["reply_to_id"] = reply_to_id
+    if topic_tag:
+        data["topic_tag"] = topic_tag
     if crossreshare_to_ig:
         data["crossreshare_to_ig_dark_mode" if dark_mode else "crossreshare_to_ig"] = "true"
     return _post(f"{API}/{user_id}/threads", data)

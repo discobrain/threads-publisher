@@ -36,6 +36,7 @@ class Config:
     state_path: str
     crossreshare_to_ig: bool
     crossreshare_dark_mode: bool
+    topic_tag: str          # default Threads topic tag; a draft's `Topic:` line overrides
     link_back: bool         # post a comment linking to the published Threads post
     published_index_url: str  # Discourse "Threads Published" page to link for backlink tracking
     dry_run: bool
@@ -112,6 +113,7 @@ def load(discourse_required: bool = False) -> Config:
         state_path=os.environ.get("THREADS_STATE_PATH", doc.get("state_path", ".threads-state.json")),
         crossreshare_to_ig=bool(doc.get("crossreshare_to_ig", True)),
         crossreshare_dark_mode=bool(doc.get("crossreshare_dark_mode", False)),
+        topic_tag=os.environ.get("THREADS_TOPIC_TAG", doc.get("topic_tag", "")),
         link_back=bool(doc.get("link_back", True)),
         published_index_url=os.environ.get(
             "THREADS_PUBLISHED_INDEX_URL", doc.get("published_index_url", "")
