@@ -64,3 +64,14 @@ class Discourse:
     def create_post(self, topic_id: int, raw: str) -> dict:
         """Add a comment to a topic."""
         return self._request("POST", "/posts.json", {"topic_id": topic_id, "raw": raw})
+
+    def update_post(self, post_id: int, raw: str, edit_reason: str = "published to Threads") -> dict:
+        """Replace a post's raw markdown (Discourse wants the fields under `post[...]`)."""
+        return self._request(
+            "PUT",
+            f"/posts/{post_id}.json",
+            {"post[raw]": raw, "post[edit_reason]": edit_reason},
+        )
+
+    def delete_post(self, post_id: int) -> dict:
+        return self._request("DELETE", f"/posts/{post_id}.json")

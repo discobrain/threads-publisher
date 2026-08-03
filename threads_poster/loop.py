@@ -55,23 +55,40 @@ def _in_scope(cfg, topic: dict) -> bool:
     return cfg.category_id is None or topic.get("category_id") == cfg.category_id
 
 
-def _published_comment(permalink: str, n: int) -> str:
-    if n > 1:
-        return f"_🧵 Published to Threads ({n} posts): {permalink}_\n"
-    return f"_🧵 Published to Threads: {permalink}_\n"
+def _published_line(cfg, permalink: str) -> str:
+    """The 'Threads Published' line inserted inside the draft's details block: an
+    internal link to the index page (creates a backlink there) + the post URL."""
+    idx = cfg.published_index_url
+    if idx:
+        if idx.startswith("/"):
+            idx = cfg.discourse_url.rstrip("/") + idx
+        return f"[:white_check_mark: Threads Published]({idx}): {permalink}"
+    return f":white_check_mark: Threads Published: {permalink}"
 
 
-def _link_back(cfg, dc: Discourse, token: str, tid: int, media_ids: list[str]) -> None:
-    """Best-effort: comment the published post's URL back into the topic."""
+def _mark_published(cfg, dc: Discourse, token: str, tid: int, post_id: int, raw: str,
+                    media_ids: list[str]) -> None:
+    """Edit the draft comment in place: flag the details summary with a green
+    check (so a collapsed view shows it's published) and insert the published
+    line above the post text. Best-effort -- publishing already succeeded."""
     if not cfg.link_back or not media_ids:
         return
     try:
         permalink = threads.get_permalink(media_ids[0], token)
-        if permalink:
-            dc.create_post(tid, _published_comment(permalink, len(media_ids)))
-            log(f"topic {tid}: linked published post back in Discourse")
+        line = _published_line(cfg, permalink)
+        # Literal emoji in the details summary: Discourse does NOT cook :shortcodes:
+        # inside a details title, but renders a real emoji char fine.
+        opening = f'[details="{cfg.draft_label}"]'
+        if opening in raw:
+            new_raw = raw.replace(
+                opening, f'[details="✅ {cfg.draft_label}"]\n\n{line}', 1
+            )
+        else:
+            new_raw = f"{line}\n\n{raw}"
+        dc.update_post(post_id, new_raw)
+        log(f"topic {tid}: marked draft comment published")
     except Exception as e:
-        log(f"topic {tid}: published, but link-back comment failed: {e}")
+        log(f"topic {tid}: published, but marking the draft failed: {e}")
 
 
 def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> None:
@@ -126,7 +143,7 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
             # the rest need finishing by hand.
             dc.set_tags(tid, sorted(tags | {cfg.published_tag}))
             state.record_publish(cfg.state_path, int(time.time()))
-            _link_back(cfg, dc, tok.access_token, tid, e.published)
+            _mark_published(cfg, dc, tok.access_token, tid, post["id"], raw, e.published)
             log(f"topic {tid}: PARTIAL publish ({len(e.published)} live) then failed: {e}. "
                 f"Tagged {cfg.published_tag} to avoid re-posting; finish the remainder manually.")
         else:
@@ -138,7 +155,7 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
     # residual duplicate risk).
     dc.set_tags(tid, sorted(tags | {cfg.published_tag}))
     state.record_publish(cfg.state_path, int(time.time()))
-    _link_back(cfg, dc, tok.access_token, tid, media_ids)
+    _mark_published(cfg, dc, tok.access_token, tid, post["id"], raw, media_ids)
     log(f"topic {tid}: published")
 
 

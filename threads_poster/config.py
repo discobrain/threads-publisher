@@ -37,6 +37,7 @@ class Config:
     crossreshare_to_ig: bool
     crossreshare_dark_mode: bool
     link_back: bool         # post a comment linking to the published Threads post
+    published_index_url: str  # Discourse "Threads Published" page to link for backlink tracking
     dry_run: bool
 
     @property
@@ -112,5 +113,8 @@ def load(discourse_required: bool = False) -> Config:
         crossreshare_to_ig=bool(doc.get("crossreshare_to_ig", True)),
         crossreshare_dark_mode=bool(doc.get("crossreshare_dark_mode", False)),
         link_back=bool(doc.get("link_back", True)),
+        published_index_url=os.environ.get(
+            "THREADS_PUBLISHED_INDEX_URL", doc.get("published_index_url", "")
+        ),
         dry_run=_flag("THREADS_DRY_RUN"),
     )

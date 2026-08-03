@@ -20,3 +20,6 @@ crossreshare_to_ig = false           # also reshare the root post to Instagram S
 crossreshare_dark_mode = false       # dark-mode IG Story variant (only if enabled)
 
 link_back = true                     # comment the published Threads post URL back in Discourse
+# Link each published note to this Discourse page so its backlinks list everything
+# published (leave empty to just drop the Threads URL). Path or full URL.
+published_index_url = "/t/threads-published/97"
