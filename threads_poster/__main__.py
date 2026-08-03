@@ -8,13 +8,18 @@ Auth (manual OAuth flow -- do this once, then refresh periodically):
   threads-poster refresh         refresh the stored long-lived token (~60d -> +60d)
   threads-poster token           show stored token status (value masked)
 
-Publishing commands (run/once) come later.
+Publish (poll Discourse for liked drafts, post them to Threads):
+
+  threads-poster run             poll forever, publish approved drafts
+  threads-poster once            a single pass, then exit
+  threads-poster show <id>       read-only: show a topic's draft, like, parsed posts
 """
 
 import sys
 import time
 
-from . import auth, config, threads, token_store
+from . import auth, config, draft, loop, threads, token_store
+from .discourse import Discourse
 
 
 def _cmd_auth_url(cfg: config.Config) -> int:
@@ -68,6 +73,25 @@ def _cmd_token(cfg: config.Config) -> int:
     return 0
 
 
+def _cmd_show(cfg: config.Config, topic_id: int) -> int:
+    dc = Discourse(cfg.discourse_url, cfg.discourse_api_key, cfg.discourse_api_username)
+    topic = dc.get_topic(topic_id)
+    tags = sorted(topic.get("tags") or [])
+    print(f"topic {topic_id}: {topic.get('title')!r}  tags={tags}")
+    print(f"draft_tag={cfg.draft_tag} present={cfg.draft_tag in tags}  "
+          f"published_tag={cfg.published_tag} present={cfg.published_tag in tags}")
+    post, raw = draft.find_draft_post(dc, topic, cfg.draft_label)
+    if post is None:
+        print(f"no [details=\"{cfg.draft_label}\"] draft comment found")
+        return 0
+    posts = draft.parse_posts(raw)
+    print(f"draft comment: post_id={post['id']} liked={draft.is_liked(post)} "
+          f"images={draft.has_images(raw)} parts={len(posts)}")
+    for i, p in enumerate(posts, 1):
+        print(f"\n--- part {i}/{len(posts)} ({len(p)} chars) ---\n{p}")
+    return 0
+
+
 def main() -> int:
     argv = sys.argv[1:]
     cmd = argv[0] if argv else "help"
@@ -77,7 +101,8 @@ def main() -> int:
         print(__doc__)
         return 0
 
-    cfg = config.load()
+    needs_discourse = cmd in ("run", "once", "show")
+    cfg = config.load(discourse_required=needs_discourse)
 
     if cmd == "auth-url":
         return _cmd_auth_url(cfg)
@@ -90,6 +115,18 @@ def main() -> int:
         return _cmd_refresh(cfg)
     if cmd == "token":
         return _cmd_token(cfg)
+    if cmd == "run":
+        loop.run(cfg)
+        return 0
+    if cmd == "once":
+        dc = Discourse(cfg.discourse_url, cfg.discourse_api_key, cfg.discourse_api_username)
+        loop.run_once(cfg, dc, loop._maybe_refresh(cfg, loop._load_token(cfg)))
+        return 0
+    if cmd == "show":
+        if not rest:
+            print("usage: threads-poster show <topic_id>", file=sys.stderr)
+            return 2
+        return _cmd_show(cfg, int(rest[0]))
 
     print(__doc__, file=sys.stderr)
     return 2

@@ -67,8 +67,23 @@ nix run . -- token
 
 ## Run
 
-Publishing (poll Discourse for approved drafts, post to Threads, optional
-Instagram cross-reshare) — coming next.
+The publisher polls Discourse and posts approved Threads drafts. A draft is the
+`[details="Threads"]` comment postmaker leaves on a topic (tagged
+`threads-draft`); you **approve it by liking that comment**. Each pass, for every
+liked draft not yet tagged `threads-published`, it posts the fenced posts as a
+thread — the root post is also cross-reshared to Instagram Stories — then tags
+the topic `threads-published` so it's never posted twice.
+
+Set the Discourse creds in `.env` (`DISCOURSE_URL`, `DISCOURSE_API_KEY`,
+`DISCOURSE_API_USERNAME`); tune tags / cross-reshare in `threads_poster.toml`.
+
+```sh
+threads-poster show <topic_id>   # read-only: draft, whether it's liked, parsed posts
+threads-poster once              # a single pass
+threads-poster run               # poll forever (refreshes the token as it nears expiry)
+THREADS_DRY_RUN=1 threads-poster once   # parse + print, don't post
+```
 
 Requirements: Nix with flakes enabled. Runtime is Python stdlib only; no
-external packages.
+external packages. A valid token must exist (`get-token`); posting and token
+refresh use the token alone (no app secret).

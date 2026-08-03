@@ -5,3 +5,10 @@
 token_path = ".threads-token.json"   # where the long-lived token is persisted
 limit = 500                          # per-post character limit (Threads)
 poll_interval = 60                   # seconds between Discourse polls (publisher loop)
+
+network_key = "threads"              # base of the -draft / -published tags
+draft_label = "Threads"              # [details="<label>"] the drafter wraps posts in
+# category = 5                       # only publish drafts in this Discourse category
+
+crossreshare_to_ig = true            # also reshare the root post to Instagram Stories
+crossreshare_dark_mode = false       # use the dark-mode IG Story variant

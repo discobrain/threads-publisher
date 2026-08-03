@@ -26,10 +26,23 @@ class Config:
     discourse_url: str
     discourse_api_key: str
     discourse_api_username: str
+    category_id: int | None
     # structure
+    network_key: str        # base of the -draft / -published tags
+    draft_label: str        # [details="<label>"] the drafter wraps the posts in
     limit: int
     poll_interval: int
+    crossreshare_to_ig: bool
+    crossreshare_dark_mode: bool
     dry_run: bool
+
+    @property
+    def draft_tag(self) -> str:
+        return f"{self.network_key}-draft"
+
+    @property
+    def published_tag(self) -> str:
+        return f"{self.network_key}-published"
 
 
 def _flag(name: str) -> bool:
@@ -75,6 +88,7 @@ def load(discourse_required: bool = False) -> Config:
         d_key = os.environ.get("DISCOURSE_API_KEY") or ""
         d_user = os.environ.get("DISCOURSE_API_USERNAME") or ""
 
+    category = os.environ.get("THREADS_CATEGORY_ID", doc.get("category"))
     return Config(
         app_id=app_id,
         app_secret=app_secret,
@@ -83,7 +97,12 @@ def load(discourse_required: bool = False) -> Config:
         discourse_url=d_url,
         discourse_api_key=d_key,
         discourse_api_username=d_user,
+        category_id=(int(category) if category not in (None, "") else None),
+        network_key=os.environ.get("THREADS_NETWORK_KEY", doc.get("network_key", "threads")),
+        draft_label=os.environ.get("THREADS_DRAFT_LABEL", doc.get("draft_label", "Threads")),
         limit=int(os.environ.get("THREADS_LIMIT", doc.get("limit", 500))),
         poll_interval=int(os.environ.get("THREADS_POLL_INTERVAL", doc.get("poll_interval", 60))),
+        crossreshare_to_ig=bool(doc.get("crossreshare_to_ig", True)),
+        crossreshare_dark_mode=bool(doc.get("crossreshare_dark_mode", False)),
         dry_run=_flag("THREADS_DRY_RUN"),
     )

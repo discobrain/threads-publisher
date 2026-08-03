@@ -115,3 +115,38 @@ def refresh_long_lived(long_lived_token: str) -> dict:
             }
         )
     )
+
+
+# --- publishing ------------------------------------------------------------
+
+API = f"{GRAPH_HOST}/v1.0"
+
+
+def create_container(
+    user_id: str,
+    access_token: str,
+    text: str,
+    *,
+    reply_to_id: str | None = None,
+    crossreshare_to_ig: bool = False,
+    dark_mode: bool = False,
+) -> dict:
+    """Create a TEXT media container. Set reply_to_id to chain it under another
+    post (thread). crossreshare_to_ig=True also reshares this post to the linked
+    Instagram account as a Story; the response then carries
+    crossreshare_to_ig_status (SUCCESS/FAILED). Returns {id, ...}."""
+    data = {"media_type": "TEXT", "text": text, "access_token": access_token}
+    if reply_to_id:
+        data["reply_to_id"] = reply_to_id
+    if crossreshare_to_ig:
+        key = "crossreshare_to_ig_dark_mode" if dark_mode else "crossreshare_to_ig"
+        data[key] = "true"
+    return _post(f"{API}/{user_id}/threads", data)
+
+
+def publish_container(user_id: str, access_token: str, creation_id: str) -> dict:
+    """Publish a previously created container. Returns {id} of the live post."""
+    return _post(
+        f"{API}/{user_id}/threads_publish",
+        {"creation_id": creation_id, "access_token": access_token},
+    )
