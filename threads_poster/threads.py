@@ -150,3 +150,10 @@ def publish_container(user_id: str, access_token: str, creation_id: str) -> dict
         f"{API}/{user_id}/threads_publish",
         {"creation_id": creation_id, "access_token": access_token},
     )
+
+
+def get_permalink(media_id: str, access_token: str) -> str:
+    """Public URL of a published post."""
+    r = _get(f"{API}/{media_id}?"
+             + urllib.parse.urlencode({"fields": "permalink", "access_token": access_token}))
+    return r.get("permalink", "")

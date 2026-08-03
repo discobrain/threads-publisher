@@ -60,3 +60,7 @@ class Discourse:
     def set_tags(self, topic_id: int, tags: list[str]) -> dict:
         """Replace the topic's full tag set (Discourse expects the complete list)."""
         return self._request("PUT", f"/t/-/{topic_id}.json", {"tags[]": tags})
+
+    def create_post(self, topic_id: int, raw: str) -> dict:
+        """Add a comment to a topic."""
+        return self._request("POST", "/posts.json", {"topic_id": topic_id, "raw": raw})

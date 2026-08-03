@@ -55,6 +55,25 @@ def _in_scope(cfg, topic: dict) -> bool:
     return cfg.category_id is None or topic.get("category_id") == cfg.category_id
 
 
+def _published_comment(permalink: str, n: int) -> str:
+    if n > 1:
+        return f"_🧵 Published to Threads ({n} posts): {permalink}_\n"
+    return f"_🧵 Published to Threads: {permalink}_\n"
+
+
+def _link_back(cfg, dc: Discourse, token: str, tid: int, media_ids: list[str]) -> None:
+    """Best-effort: comment the published post's URL back into the topic."""
+    if not cfg.link_back or not media_ids:
+        return
+    try:
+        permalink = threads.get_permalink(media_ids[0], token)
+        if permalink:
+            dc.create_post(tid, _published_comment(permalink, len(media_ids)))
+            log(f"topic {tid}: linked published post back in Discourse")
+    except Exception as e:
+        log(f"topic {tid}: published, but link-back comment failed: {e}")
+
+
 def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> None:
     tid = topic["id"]
     tags = set(topic.get("tags") or [])
@@ -84,7 +103,7 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
 
     user_id = tok.user_id or "me"
     try:
-        publish.publish_thread(
+        media_ids = publish.publish_thread(
             user_id,
             tok.access_token,
             posts,
@@ -96,6 +115,7 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
             # Some posts are already live -> mark done so we never re-post them;
             # the rest need finishing by hand.
             dc.set_tags(tid, sorted(tags | {cfg.published_tag}))
+            _link_back(cfg, dc, tok.access_token, tid, e.published)
             log(f"topic {tid}: PARTIAL publish ({len(e.published)} live) then failed: {e}. "
                 f"Tagged {cfg.published_tag} to avoid re-posting; finish the remainder manually.")
         else:
@@ -106,6 +126,7 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
     # published (the tiny crash window between last post and tagging is the only
     # residual duplicate risk).
     dc.set_tags(tid, sorted(tags | {cfg.published_tag}))
+    _link_back(cfg, dc, tok.access_token, tid, media_ids)
     log(f"topic {tid}: published")
 
 

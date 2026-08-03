@@ -34,6 +34,7 @@ class Config:
     poll_interval: int
     crossreshare_to_ig: bool
     crossreshare_dark_mode: bool
+    link_back: bool         # post a comment linking to the published Threads post
     dry_run: bool
 
     @property
@@ -104,5 +105,6 @@ def load(discourse_required: bool = False) -> Config:
         poll_interval=int(os.environ.get("THREADS_POLL_INTERVAL", doc.get("poll_interval", 60))),
         crossreshare_to_ig=bool(doc.get("crossreshare_to_ig", True)),
         crossreshare_dark_mode=bool(doc.get("crossreshare_dark_mode", False)),
+        link_back=bool(doc.get("link_back", True)),
         dry_run=_flag("THREADS_DRY_RUN"),
     )
