@@ -1,0 +1,6 @@
+.env
+.threads-token.json
+.threads-token.json.tmp
+__pycache__/
+*.pyc
+.direnv/

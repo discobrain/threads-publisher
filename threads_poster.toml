@@ -1,0 +1,7 @@
+# threads-poster configuration.
+# Secrets (Threads app id/secret, redirect uri, Discourse creds) are NOT here --
+# they come from the environment. Everything below is structure.
+
+token_path = ".threads-token.json"   # where the long-lived token is persisted
+limit = 500                          # per-post character limit (Threads)
+poll_interval = 60                   # seconds between Discourse polls (publisher loop)
