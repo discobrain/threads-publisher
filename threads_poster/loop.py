@@ -18,7 +18,7 @@ access token.
 
 import time
 
-from . import draft, publish, threads, token_store
+from . import draft, publish, state, threads, token_store
 from .discourse import Discourse
 
 REFRESH_BEFORE = 7 * 86400  # refresh the long-lived token when <7 days remain
@@ -102,6 +102,15 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
             log(f"[dry-run] topic {tid} post {i}/{len(posts)} ({len(p)} chars):\n{p}")
         return
 
+    # Throttle: at most one publish per min_publish_interval, so a burst of likes
+    # goes out spaced apart. The draft stays approved+untagged and is picked up on
+    # a later pass once the window elapses.
+    now = int(time.time())
+    since = now - state.last_publish(cfg.state_path)
+    if since < cfg.min_publish_interval:
+        log(f"topic {tid}: approved but throttled; next publish in ~{(cfg.min_publish_interval - since) // 60}m")
+        return
+
     user_id = tok.user_id or "me"
     try:
         media_ids = publish.publish_thread(
@@ -116,6 +125,7 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
             # Some posts are already live -> mark done so we never re-post them;
             # the rest need finishing by hand.
             dc.set_tags(tid, sorted(tags | {cfg.published_tag}))
+            state.record_publish(cfg.state_path, int(time.time()))
             _link_back(cfg, dc, tok.access_token, tid, e.published)
             log(f"topic {tid}: PARTIAL publish ({len(e.published)} live) then failed: {e}. "
                 f"Tagged {cfg.published_tag} to avoid re-posting; finish the remainder manually.")
@@ -127,6 +137,7 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
     # published (the tiny crash window between last post and tagging is the only
     # residual duplicate risk).
     dc.set_tags(tid, sorted(tags | {cfg.published_tag}))
+    state.record_publish(cfg.state_path, int(time.time()))
     _link_back(cfg, dc, tok.access_token, tid, media_ids)
     log(f"topic {tid}: published")
 
@@ -146,8 +157,8 @@ def run(cfg) -> None:
     scope = f"tag='{cfg.draft_tag}'"
     if cfg.category_id is not None:
         scope += f" category={cfg.category_id}"
-    log(f"up. {scope} every {cfg.poll_interval}s, crossreshare_to_ig={cfg.crossreshare_to_ig}, "
-        f"dry_run={cfg.dry_run}")
+    log(f"up. {scope} every {cfg.poll_interval}s, <=1 publish/{cfg.min_publish_interval}s, "
+        f"crossreshare_to_ig={cfg.crossreshare_to_ig}, dry_run={cfg.dry_run}")
     while True:
         try:
             tok = _maybe_refresh(cfg, _load_token(cfg))

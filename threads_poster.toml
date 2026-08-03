@@ -5,6 +5,8 @@
 token_path = ".threads-token.json"   # where the long-lived token is persisted
 limit = 500                          # per-post character limit (Threads)
 poll_interval = 60                   # seconds between Discourse polls (publisher loop)
+min_publish_interval = 3600          # seconds; publish at most one post per this window
+state_path = ".threads-state.json"   # remembers the last publish time (for the throttle)
 
 network_key = "threads"              # base of the -draft / -published tags
 draft_label = "Threads"              # [details="<label>"] the drafter wraps posts in

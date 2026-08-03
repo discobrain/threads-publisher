@@ -32,6 +32,8 @@ class Config:
     draft_label: str        # [details="<label>"] the drafter wraps the posts in
     limit: int
     poll_interval: int
+    min_publish_interval: int   # seconds; at most one publish per this window
+    state_path: str
     crossreshare_to_ig: bool
     crossreshare_dark_mode: bool
     link_back: bool         # post a comment linking to the published Threads post
@@ -103,6 +105,10 @@ def load(discourse_required: bool = False) -> Config:
         draft_label=os.environ.get("THREADS_DRAFT_LABEL", doc.get("draft_label", "Threads")),
         limit=int(os.environ.get("THREADS_LIMIT", doc.get("limit", 500))),
         poll_interval=int(os.environ.get("THREADS_POLL_INTERVAL", doc.get("poll_interval", 60))),
+        min_publish_interval=int(
+            os.environ.get("THREADS_MIN_PUBLISH_INTERVAL", doc.get("min_publish_interval", 3600))
+        ),
+        state_path=os.environ.get("THREADS_STATE_PATH", doc.get("state_path", ".threads-state.json")),
         crossreshare_to_ig=bool(doc.get("crossreshare_to_ig", True)),
         crossreshare_dark_mode=bool(doc.get("crossreshare_dark_mode", False)),
         link_back=bool(doc.get("link_back", True)),
