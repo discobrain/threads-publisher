@@ -10,7 +10,9 @@ network_key = "threads"              # base of the -draft / -published tags
 draft_label = "Threads"              # [details="<label>"] the drafter wraps posts in
 # category = 5                       # only publish drafts in this Discourse category
 
-crossreshare_to_ig = true            # also reshare the root post to Instagram Stories
-# This account's light-mode crossreshare_to_ig returns "feature not available"
-# (4279044) while the dark-mode variant works, so use dark mode.
-crossreshare_dark_mode = true        # use the dark-mode IG Story variant
+# IG Story cross-reshare is OFF. The API flag crossreshare_to_ig returns
+# "feature not available" (4279044) for this app -- it needs App Review for
+# threads_share_to_instagram, which we're not pursuing. Manual sharing from the
+# Threads app still works. Flip to true if that API access is ever granted.
+crossreshare_to_ig = false           # also reshare the root post to Instagram Stories
+crossreshare_dark_mode = false       # dark-mode IG Story variant (only if enabled)
