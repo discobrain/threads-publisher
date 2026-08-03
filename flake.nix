@@ -26,15 +26,25 @@
           type = "app";
           program = "${self.packages.${pkgs.system}.default}/bin/threads-poster";
         };
-      });
-
-      devShells = forAll (pkgs: {
-        default = pkgs.mkShell {
-          packages = [ pkgs.python3 pkgs.jq ];
-          shellHook = ''
-            echo "threads-poster dev shell — run: python -m threads_poster <auth-url|auth|refresh|token>"
-          '';
+        get-token = {
+          type = "app";
+          program = "${self.packages.${pkgs.system}.default}/bin/get-token";
         };
       });
+
+      devShells = forAll (pkgs:
+        let
+          get-token = pkgs.writeShellScriptBin "get-token" ''
+            exec ${pkgs.python3}/bin/python -m threads_poster.get_token "$@"
+          '';
+        in
+        {
+          default = pkgs.mkShell {
+            packages = [ pkgs.python3 pkgs.jq get-token ];
+            shellHook = ''
+              echo "threads-poster dev shell — get-token, or: python -m threads_poster <auth-url|auth|refresh|token>"
+            '';
+          };
+        });
     };
 }

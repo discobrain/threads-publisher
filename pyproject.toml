@@ -11,6 +11,7 @@ dependencies = []              # stdlib only
 
 [project.scripts]
 threads-poster = "threads_poster.__main__:main"
+get-token = "threads_poster.get_token:main"
 
 [tool.setuptools]
 packages = ["threads_poster"]

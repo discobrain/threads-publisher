@@ -14,7 +14,7 @@ Publishing commands (run/once) come later.
 import sys
 import time
 
-from . import config, threads, token_store
+from . import auth, config, threads, token_store
 
 
 def _cmd_auth_url(cfg: config.Config) -> int:
@@ -29,22 +29,10 @@ def _cmd_auth_url(cfg: config.Config) -> int:
 
 
 def _cmd_auth(cfg: config.Config, code: str) -> int:
-    code = code.strip().rstrip("#_")  # the redirect appends a literal #_
-    short = threads.exchange_code(cfg.app_id, cfg.app_secret, cfg.redirect_uri, code)
-    short_token = short["access_token"]
-    user_id = str(short.get("user_id", ""))
-
-    long = threads.exchange_long_lived(cfg.app_secret, short_token)
     now = int(time.time())
-    tok = token_store.Token(
-        access_token=long["access_token"],
-        user_id=user_id,
-        expires_at=now + int(long.get("expires_in", 0)),
-        obtained_at=now,
-    )
-    token_store.save(cfg.token_path, tok)
+    tok = auth.fetch_and_store(cfg, auth.code_from_input(code), now)
     days = tok.expires_in(now) // 86400
-    print(f"Saved long-lived token to {cfg.token_path} (user {user_id}, expires in ~{days}d)")
+    print(f"Saved long-lived token to {cfg.token_path} (user {tok.user_id}, expires in ~{days}d)")
     return 0
 
 
