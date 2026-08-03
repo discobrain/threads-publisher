@@ -82,12 +82,13 @@ def process_topic(cfg, dc: Discourse, tok: token_store.Token, topic: dict) -> No
     if cfg.draft_tag not in tags:
         return  # draft not ready
 
-    post, raw = draft.find_draft_post(dc, topic, cfg.draft_label)
+    post = draft.find_draft_post(topic, cfg.draft_label)
     if post is None:
         return  # no Threads draft comment on this topic
     if not draft.is_liked(post):
         return  # not approved yet -- waiting for a like
 
+    raw = dc.get_post_raw(post["id"])  # only now that it's approved
     posts = draft.parse_posts(raw)
     if not posts:
         log(f"topic {tid}: draft comment has no fenced posts, skipping")

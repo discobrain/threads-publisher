@@ -22,21 +22,19 @@ the surrounding prose -- only the fenced post bodies, in order.
 
 import re
 
-from .discourse import Discourse
-
 _FENCE = re.compile(r"```md\n(.*?)\n```", re.DOTALL)
 _LIKE_ACTION_ID = 2
 
 
-def find_draft_post(dc: Discourse, topic: dict, label: str) -> tuple[dict | None, str]:
-    """Return (post_object, raw_markdown) for the network's draft comment, or
-    (None, "") if the topic has no such comment yet."""
-    marker = f'[details="{label}"]'
+def find_draft_post(topic: dict, label: str) -> dict | None:
+    """The network's draft comment, matched via its already-rendered details
+    summary in the topic JSON -- no extra API call per comment (the raw is only
+    fetched later, once the draft is approved). Returns the post dict or None."""
+    marker = f">{label}</summary>"
     for p in (topic.get("post_stream") or {}).get("posts") or []:
-        raw = dc.get_post_raw(p["id"])
-        if marker in raw:
-            return p, raw
-    return None, ""
+        if marker in (p.get("cooked") or ""):
+            return p
+    return None
 
 
 def is_liked(post: dict) -> bool:

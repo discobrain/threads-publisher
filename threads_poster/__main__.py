@@ -80,10 +80,11 @@ def _cmd_show(cfg: config.Config, topic_id: int) -> int:
     print(f"topic {topic_id}: {topic.get('title')!r}  tags={tags}")
     print(f"draft_tag={cfg.draft_tag} present={cfg.draft_tag in tags}  "
           f"published_tag={cfg.published_tag} present={cfg.published_tag in tags}")
-    post, raw = draft.find_draft_post(dc, topic, cfg.draft_label)
+    post = draft.find_draft_post(topic, cfg.draft_label)
     if post is None:
         print(f"no [details=\"{cfg.draft_label}\"] draft comment found")
         return 0
+    raw = dc.get_post_raw(post["id"])
     posts = draft.parse_posts(raw)
     print(f"draft comment: post_id={post['id']} liked={draft.is_liked(post)} "
           f"images={draft.has_images(raw)} parts={len(posts)}")
