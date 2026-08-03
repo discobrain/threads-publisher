@@ -38,8 +38,9 @@ The Threads app id/secret are needed **only** to issue the token. Refreshing it
 and posting afterwards use the token alone.
 
 1. In the Meta App, register `https://localhost/` as a redirect URI, and set
-   `THREADS_REDIRECT_URI=https://localhost/` in `.env`.
-2. Print the authorization URL:
+   `THREADS_REDIRECT_URI=https://localhost/` in `.env` (with the real
+   `THREADS_APP_ID` / `THREADS_APP_SECRET`, not the placeholders).
+2. Run the helper — it prints the authorization URL and then waits:
 
    ```sh
    get-token
@@ -47,12 +48,8 @@ and posting afterwards use the token alone.
 
 3. Open that URL in a browser and approve. The browser redirects to
    `https://localhost/?code=...` — nothing listens there, so the page won't
-   load; that's expected. Copy the **whole** address-bar URL.
-4. Exchange it for a long-lived token (stored in `.threads-token.json`):
-
-   ```sh
-   get-token 'https://localhost/?code=PASTE_THE_WHOLE_URL'
-   ```
+   load; that's expected. Copy the **whole** address-bar URL and paste it back
+   at the prompt. The token is exchanged and stored in `.threads-token.json`.
 
 The token lasts ~60 days. Refresh it before it expires, and inspect it anytime:
 

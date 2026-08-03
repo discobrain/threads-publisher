@@ -56,6 +56,16 @@ def load(discourse_required: bool = False) -> Config:
     app_secret = req_env("THREADS_APP_SECRET")
     redirect_uri = req_env("THREADS_REDIRECT_URI")
 
+    # Catch a .env still holding the .env.example placeholders, which otherwise
+    # reach Meta as a bogus client_id ("no app id was sent").
+    for name, value in (
+        ("THREADS_APP_ID", app_id),
+        ("THREADS_APP_SECRET", app_secret),
+        ("THREADS_REDIRECT_URI", redirect_uri),
+    ):
+        if value.startswith("your-") or value == "https://example.com/callback":
+            raise SystemExit(f"{name} still holds a placeholder value; set it in .env")
+
     if discourse_required:
         d_url = req_env("DISCOURSE_URL").rstrip("/")
         d_key = req_env("DISCOURSE_API_KEY")
